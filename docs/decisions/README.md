@@ -6,3 +6,4 @@
 - [market-data-source](market-data-source.md) — Read when fetching stock or ETF prices, price history, volume, or valuation ratios.
 - [user-data-storage](user-data-storage.md) — Read when storing user-entered data, adding login, or deciding who can read or write a record.
 - [hosting](hosting.md) — Read when deploying the app, configuring environments, or choosing where server code runs.
+- [news-sources](news-sources.md) — Read when collecting news articles or building news-based recommendations.
