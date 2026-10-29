@@ -1,15 +1,16 @@
-import { summarizePositions, type Trade, type TradeSide } from "./positions";
+import { summarizePositions, type Trade, type TradeSide, type TradeSource } from "./positions";
 
 export type TradeInput = {
   symbol: string;
   name: string;
   side: TradeSide;
+  source: TradeSource;
   tradeDate: string;
   price: number;
   quantity: number;
 };
 
-export type RawTradeInput = Record<keyof TradeInput, string | undefined | null>;
+export type RawTradeInput = Record<Exclude<keyof TradeInput, "source">, string | undefined | null> & { source?: string | null };
 
 export type ParseResult = { ok: true; value: TradeInput } | { ok: false; error: string };
 
@@ -27,6 +28,10 @@ export function parseTradeInput(raw: RawTradeInput, today: string): ParseResult 
   const side = raw.side;
   if (side !== "buy" && side !== "sell") return { ok: false, error: "매수 또는 매도를 골라 주세요." };
 
+  // 이전 화면에서 보낸 입력처럼 출처가 없으면 직접 판단으로 본다.
+  const source = raw.source ?? "manual";
+  if (source !== "turtle" && source !== "manual") return { ok: false, error: "출처를 골라 주세요." };
+
   const tradeDate = raw.tradeDate?.trim() ?? "";
   if (!isValidDay(tradeDate)) return { ok: false, error: "거래일을 올바르게 입력해 주세요." };
   if (tradeDate > today) return { ok: false, error: "미래 날짜는 입력할 수 없습니다." };
@@ -39,7 +44,7 @@ export function parseTradeInput(raw: RawTradeInput, today: string): ParseResult 
 
   return {
     ok: true,
-    value: { symbol, name: raw.name?.trim() || symbol, side, tradeDate, price, quantity },
+    value: { symbol, name: raw.name?.trim() || symbol, side, source, tradeDate, price, quantity },
   };
 }
 
@@ -60,6 +65,11 @@ export function checkTradeChange(existing: Trade[], change: TradeChange): { ok: 
   const result = summarizePositions(next);
   if (result.status === "oversold") {
     return { ok: false, error: `${result.tradeDate} 기준 ${result.symbol} 보유 수량보다 많이 팔 수 없습니다.` };
+  }
+  // 터틀 매매 성과를 따로 계산하므로, 터틀 매도도 터틀로 산 수량 안에서만 허용한다.
+  const turtle = summarizePositions(next.filter((t) => t.source === "turtle"));
+  if (turtle.status === "oversold") {
+    return { ok: false, error: `${turtle.tradeDate} 기준 ${turtle.symbol}를 터틀 신호로 산 수량보다 많이 팔 수 없습니다.` };
   }
   return { ok: true };
 }

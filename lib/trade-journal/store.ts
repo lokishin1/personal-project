@@ -8,13 +8,14 @@ type TradeRow = {
   symbol: string;
   name: string;
   side: "buy" | "sell";
+  source: "turtle" | "manual";
   trade_date: string;
   price: number | string;
   quantity: number | string;
   created_at: string;
 };
 
-const COLUMNS = "id, symbol, name, side, trade_date, price, quantity, created_at";
+const COLUMNS = "id, symbol, name, side, source, trade_date, price, quantity, created_at";
 
 function toTrade(row: TradeRow): Trade {
   return {
@@ -22,6 +23,7 @@ function toTrade(row: TradeRow): Trade {
     symbol: row.symbol,
     name: row.name,
     side: row.side,
+    source: row.source,
     tradeDate: row.trade_date,
     price: Number(row.price),
     quantity: Number(row.quantity),
@@ -34,6 +36,7 @@ function toRow(input: TradeInput) {
     symbol: input.symbol,
     name: input.name,
     side: input.side,
+    source: input.source,
     trade_date: input.tradeDate,
     price: input.price,
     quantity: input.quantity,

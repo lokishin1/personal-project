@@ -204,3 +204,56 @@ export function backtestWindow(now = new Date()): { fetchFrom: string; periodSta
   fetchFrom.setUTCMonth(fetchFrom.getUTCMonth() - LOOKBACK_EXTRA_MONTHS);
   return { fetchFrom: fetchFrom.toISOString().slice(0, 10), periodStart: periodStart.toISOString().slice(0, 10) };
 }
+
+export type HoldingExitSignal =
+  | {
+      status: "ok";
+      asOf: string;
+      close: number;
+      /** 직전 20거래일 최저가 */
+      exitLevel: number;
+      /** 가장 최근 매수일(휴장일이면 직전 거래일)의 N */
+      nAtBuy: number;
+      /** 평균단가 − 2 × nAtBuy */
+      stopPrice: number;
+      hitExit: boolean;
+      hitStop: boolean;
+      aboveExitPercent: number;
+      aboveStopPercent: number;
+    }
+  | { status: "insufficient" };
+
+/** 실제 보유 종목의 매도 신호. 평균단가와 가장 최근 매수일로 손절 가격을 정한다. */
+export function holdingExitSignal(
+  bars: TurtleBar[],
+  holding: { averageCost: number; lastBuyDate: string },
+): HoldingExitSignal {
+  const last = bars.length - 1;
+  if (last < EXIT_LOOKBACK) return { status: "insufficient" };
+
+  let buyIndex = -1;
+  for (let i = 0; i <= last; i++) {
+    if (bars[i].date <= holding.lastBuyDate) buyIndex = i;
+    else break;
+  }
+  // 매수일의 N을 20거래일 진폭으로 계산할 수 있어야 한다.
+  if (buyIndex < N_PERIOD - 1) return { status: "insufficient" };
+
+  const close = bars[last].close;
+  const exitLevel = minLow(bars, last - EXIT_LOOKBACK, last);
+  const nAtBuy = averageTrueRange(bars, buyIndex);
+  const stopPrice = holding.averageCost - STOP_N_MULTIPLE * nAtBuy;
+
+  return {
+    status: "ok",
+    asOf: bars[last].date,
+    close,
+    exitLevel,
+    nAtBuy,
+    stopPrice,
+    hitExit: close < exitLevel,
+    hitStop: close < stopPrice,
+    aboveExitPercent: (close / exitLevel - 1) * 100,
+    aboveStopPercent: (close / stopPrice - 1) * 100,
+  };
+}

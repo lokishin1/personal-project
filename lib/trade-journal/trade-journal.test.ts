@@ -1,16 +1,60 @@
 import { describe, expect, it } from "vitest";
 
-import { checkTradeChange, evaluatePosition, parseTradeInput, summarizePositions, type Trade } from "@/lib/trade-journal";
+import {
+  checkTradeChange,
+  evaluatePosition,
+  parseTradeInput,
+  summarizePositions,
+  summarizeTurtleTrades,
+  type Trade,
+} from "@/lib/trade-journal";
 
 function trade(overrides: Partial<Trade> & Pick<Trade, "side" | "price" | "quantity" | "tradeDate">): Trade {
   return {
     id: `${overrides.tradeDate}-${overrides.side}-${overrides.price}`,
     symbol: "TSLA",
     name: "Tesla, Inc.",
+    source: "manual",
     createdAt: `${overrides.tradeDate}T00:00:00.000Z`,
     ...overrides,
   };
 }
+
+describe("summarizeTurtleTrades", () => {
+  // 직접 판단 $300×10, 터틀 $400×10 매수, 터틀 $420×5 매도
+  const mixed = [
+    trade({ side: "buy", tradeDate: "2026-01-05", price: 300, quantity: 10 }),
+    trade({ side: "buy", tradeDate: "2026-02-05", price: 400, quantity: 10, source: "turtle" }),
+    trade({ side: "sell", tradeDate: "2026-03-05", price: 420, quantity: 5, source: "turtle" }),
+  ];
+
+  it("터틀 매매만 모아 평균단가 방식으로 실현 손익과 수익률을 계산한다", () => {
+    const result = summarizeTurtleTrades(mixed);
+
+    expect(result).toMatchObject({ tradeCount: 2, sellCount: 1, winningSells: 1, realizedPnl: 100 });
+    expect(result.realizedPercent).toBeCloseTo(5, 6);
+    expect(result.openPositions).toMatchObject([{ symbol: "TSLA", quantity: 5, averageCost: 400 }]);
+  });
+
+  it("종목별 전체 요약은 출처와 관계없이 모든 매매로 계산한다", () => {
+    const result = summarizePositions(mixed);
+
+    expect(result.status === "ok" && result.positions[0]).toMatchObject({ quantity: 15, averageCost: 350, realizedPnl: 350 });
+  });
+
+  it("터틀 매매가 없으면 매매 수 0과 빈 결과를 돌려준다", () => {
+    expect(summarizeTurtleTrades([mixed[0]])).toMatchObject({ tradeCount: 0, sellCount: 0, realizedPnl: 0, realizedPercent: null, openPositions: [] });
+  });
+
+  it("평균단가보다 싸게 판 터틀 매도는 수익 낸 매도로 세지 않는다", () => {
+    const result = summarizeTurtleTrades([
+      ...mixed,
+      trade({ side: "sell", tradeDate: "2026-04-05", price: 380, quantity: 5, source: "turtle" }),
+    ]);
+
+    expect(result).toMatchObject({ sellCount: 2, winningSells: 1, realizedPnl: 0 });
+  });
+});
 
 describe("summarizePositions", () => {
   it("여러 번 매수하면 평균단가는 매수 금액의 가중 평균이다", () => {
@@ -115,7 +159,7 @@ describe("parseTradeInput", () => {
   it("올바른 입력을 정리된 값으로 돌려준다", () => {
     expect(parseTradeInput(valid, "2026-10-29")).toEqual({
       ok: true,
-      value: { symbol: "TSLA", name: "Tesla, Inc.", side: "buy", tradeDate: "2026-10-28", price: 404.22, quantity: 3 },
+      value: { symbol: "TSLA", name: "Tesla, Inc.", side: "buy", source: "manual", tradeDate: "2026-10-28", price: 404.22, quantity: 3 },
     });
   });
 
@@ -151,5 +195,33 @@ describe("checkTradeChange", () => {
 
   it("수정 후에도 보유 수량이 음수가 되지 않으면 허용한다", () => {
     expect(checkTradeChange([buy, sell], { type: "update", trade: { ...buy, quantity: 12 } })).toEqual({ ok: true });
+  });
+});
+
+describe("출처 검증", () => {
+  const manualBuy = trade({ side: "buy", tradeDate: "2026-01-05", price: 300, quantity: 10 });
+  const turtleBuy = trade({ side: "buy", tradeDate: "2026-02-05", price: 400, quantity: 3, source: "turtle" });
+
+  it("터틀 출처 매도는 터틀 출처로 산 수량을 넘을 수 없다", () => {
+    const sell = trade({ side: "sell", tradeDate: "2026-03-05", price: 420, quantity: 5, source: "turtle" });
+
+    expect(checkTradeChange([manualBuy, turtleBuy], { type: "add", trade: sell })).toEqual({
+      ok: false,
+      error: "2026-03-05 기준 TSLA를 터틀 신호로 산 수량보다 많이 팔 수 없습니다.",
+    });
+  });
+
+  it("출처를 직접 판단으로 바꿔 터틀 매도가 터틀 매수를 넘게 되면 막는다", () => {
+    const sell = trade({ side: "sell", tradeDate: "2026-03-05", price: 420, quantity: 3, source: "turtle" });
+
+    expect(checkTradeChange([manualBuy, turtleBuy, sell], { type: "update", trade: { ...turtleBuy, source: "manual" } })).toMatchObject({ ok: false });
+  });
+
+  it("parseTradeInput은 출처를 읽고, 알 수 없는 값은 막는다", () => {
+    const base = { symbol: "TSLA", name: "Tesla", side: "buy", tradeDate: "2026-10-28", price: "1", quantity: "1" };
+
+    expect(parseTradeInput({ ...base, source: "turtle" }, "2026-10-29")).toMatchObject({ ok: true, value: { source: "turtle" } });
+    expect(parseTradeInput({ ...base, source: undefined }, "2026-10-29")).toMatchObject({ ok: true, value: { source: "manual" } });
+    expect(parseTradeInput({ ...base, source: "news" }, "2026-10-29")).toEqual({ ok: false, error: "출처를 골라 주세요." });
   });
 });

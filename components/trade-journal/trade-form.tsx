@@ -62,6 +62,21 @@ export function TradeForm({ action, submitLabel, trade }: TradeFormProps) {
           </RadioGroup>
         </FieldSet>
 
+        <FieldSet>
+          <FieldLegend variant="label">출처</FieldLegend>
+          <RadioGroup name="source" defaultValue={values?.source ?? trade?.source ?? "manual"} className="flex flex-wrap gap-x-6 gap-y-2">
+            <Field orientation="horizontal">
+              <RadioGroupItem value="manual" id="source-manual" aria-label="직접 판단" />
+              <FieldLabel htmlFor="source-manual">직접 판단</FieldLabel>
+            </Field>
+            <Field orientation="horizontal">
+              <RadioGroupItem value="turtle" id="source-turtle" aria-label="터틀 신호" />
+              <FieldLabel htmlFor="source-turtle">터틀 신호</FieldLabel>
+            </Field>
+          </RadioGroup>
+          <FieldDescription>매도할 때는 어떤 판단으로 산 주식을 파는지 고르세요.</FieldDescription>
+        </FieldSet>
+
         <div className="grid gap-4 sm:grid-cols-3">
           <Field>
             <FieldLabel htmlFor="tradeDate">거래일</FieldLabel>
