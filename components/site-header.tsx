@@ -14,6 +14,9 @@ export async function SiteHeader() {
           종목 한눈에 보기
         </Link>
         <nav aria-label="주요 메뉴" className="ml-auto flex items-center gap-1">
+          <Link href="/signals" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+            오늘의 신호
+          </Link>
           <Link href="/trades" className={buttonVariants({ variant: "ghost", size: "sm" })}>
             매매 기록
           </Link>
