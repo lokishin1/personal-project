@@ -94,3 +94,26 @@ export async function getReturnSince(
     changePercent: ((currentPrice - base.close) / base.close) * 100,
   };
 }
+
+export type DailyBar = { date: string; open: number; high: number; low: number; close: number; volume: number };
+
+export type DailyBarsResult = { status: "ok"; bars: DailyBar[] } | { status: "error" };
+
+type FullBar = { date: Date; open: number | null; high: number | null; low: number | null; close: number | null; volume: number | null };
+
+/** period1(YYYY-MM-DD)부터 최근까지의 일별 시가·고가·저가·종가·거래량 */
+export async function getDailyBars(symbol: string, period1: string): Promise<DailyBarsResult> {
+  let quotes: FullBar[];
+  try {
+    quotes = (await fetchDailyBars(symbol, period1)) as unknown as FullBar[];
+  } catch {
+    return { status: "error" };
+  }
+
+  const bars: DailyBar[] = [];
+  for (const q of quotes) {
+    if (q.open == null || q.high == null || q.low == null || q.close == null) continue;
+    bars.push({ date: toDay(q.date), open: q.open, high: q.high, low: q.low, close: q.close, volume: q.volume ?? 0 });
+  }
+  return { status: "ok", bars };
+}

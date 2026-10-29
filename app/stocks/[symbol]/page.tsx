@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { PriceChart } from "@/components/stock-overview/price-chart";
+import { TurtleSection } from "@/components/stock-overview/turtle-section";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   formatMoney,
   formatPercent,
@@ -141,6 +144,10 @@ export default async function StockPage({ params, searchParams }: PageProps<"/st
           <ReturnSummary result={returnResult} chosen={from} currency={overview.currency} />
         </CardContent>
       </Card>
+
+      <Suspense fallback={<Skeleton className="h-96" aria-label="터틀 신호를 계산하는 중" />}>
+        <TurtleSection symbol={symbol} currency={overview.currency} />
+      </Suspense>
 
       <Card>
         <CardHeader>

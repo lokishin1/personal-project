@@ -12,7 +12,7 @@ vi.mock("yahoo-finance2", () => ({
   }),
 }));
 
-import { getPriceHistory, getReturnSince, getStockOverview, searchSecurities } from "@/lib/market-data";
+import { getDailyBars, getPriceHistory, getReturnSince, getStockOverview, searchSecurities } from "@/lib/market-data";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -193,5 +193,34 @@ describe("getPriceHistory", () => {
     yahoo.chart.mockRejectedValue(new Error("network"));
 
     expect(await getPriceHistory("TSLA", "1y")).toEqual({ status: "error" });
+  });
+});
+
+describe("getDailyBars", () => {
+  it("값이 빠진 날을 건너뛰고 거래일·시가·고가·저가·종가·거래량을 돌려준다", async () => {
+    yahoo.chart.mockResolvedValue({
+      quotes: [
+        { date: new Date("2023-07-03T13:30:00.000Z"), open: 1, high: 3, low: 0.5, close: 2, volume: 10 },
+        { date: new Date("2023-07-05T13:30:00.000Z"), open: null, high: null, low: null, close: null, volume: null },
+        { date: new Date("2023-07-06T13:30:00.000Z"), open: 2, high: 4, low: 1.5, close: 3, volume: null },
+      ],
+    });
+
+    const result = await getDailyBars("tsla", "2023-07-01");
+
+    expect(yahoo.chart).toHaveBeenCalledWith("TSLA", { period1: "2023-07-01", interval: "1d" });
+    expect(result).toEqual({
+      status: "ok",
+      bars: [
+        { date: "2023-07-03", open: 1, high: 3, low: 0.5, close: 2, volume: 10 },
+        { date: "2023-07-06", open: 2, high: 4, low: 1.5, close: 3, volume: 0 },
+      ],
+    });
+  });
+
+  it("Yahoo 호출이 실패하면 error를 돌려준다", async () => {
+    yahoo.chart.mockRejectedValue(new Error("network"));
+
+    expect(await getDailyBars("TSLA", "2023-07-01")).toEqual({ status: "error" });
   });
 });
