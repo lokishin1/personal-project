@@ -132,6 +132,12 @@
       "sourceType": "github",
       "skillPath": "skills/workflow/update-project-skills/SKILL.md",
       "computedHash": "d32afd997c10adf6707b80ab0ee30c37638dc53b5f728dd539ce5ff058c0a432"
+    },
+    "yahoo-finance2": {
+      "source": "gadicc/yahoo-finance2",
+      "sourceType": "github",
+      "skillPath": "skills/yahoo-finance2/SKILL.md",
+      "computedHash": "461e6f119d0499dc3bbbd279a45d9407358d69ac114c8ab176a2bbe8b9630788"
     }
   }
 }
