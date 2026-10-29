@@ -89,3 +89,14 @@ drop policy if exists "trades: owner can delete" on public.trades;
 create policy "trades: owner can delete" on public.trades
   for delete to authenticated
   using ((select auth.uid()) = user_id);
+
+-- ─── trades.source: 매매 출처(turtle-trade-link) ──────────────────────────────
+-- 이전에 입력한 매매는 모두 직접 판단(manual)이 된다.
+alter table public.trades add column if not exists source text not null default 'manual';
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'trades_source_check') then
+    alter table public.trades add constraint trades_source_check check (source in ('turtle', 'manual'));
+  end if;
+end $$;

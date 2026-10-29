@@ -1,10 +1,14 @@
 export type TradeSide = "buy" | "sell";
 
+/** 매매가 어떤 판단에서 나왔는지. GLOSSARY.md의 "출처" */
+export type TradeSource = "turtle" | "manual";
+
 export type Trade = {
   id: string;
   symbol: string;
   name: string;
   side: TradeSide;
+  source: TradeSource;
   /** YYYY-MM-DD */
   tradeDate: string;
   price: number;
@@ -24,6 +28,11 @@ export type Position = {
   realizedPnl: number;
   /** 매도한 수량의 평균단가 기준 원가 합계 (실현 수익률 계산용) */
   realizedCostBasis: number;
+  /** 매도 건수와, 그 시점 평균단가보다 비싸게 판 건수 */
+  sellCount: number;
+  winningSells: number;
+  /** 가장 최근 매수일(YYYY-MM-DD). 매수가 없으면 null */
+  lastBuyDate: string | null;
   /** 거래일·입력 순 매매 내역 */
   trades: Trade[];
 };
@@ -52,16 +61,22 @@ export function summarizePositions(trades: Trade[]): PositionsResult {
     let costTotal = 0;
     let realizedPnl = 0;
     let realizedCostBasis = 0;
+    let sellCount = 0;
+    let winningSells = 0;
+    let lastBuyDate: string | null = null;
 
     for (const t of list) {
       if (t.side === "buy") {
         quantity += t.quantity;
         costTotal += t.price * t.quantity;
+        lastBuyDate = t.tradeDate;
         continue;
       }
       // 부동소수 오차로 전량 매도가 막히지 않도록 아주 작은 차이는 허용한다.
       if (t.quantity > quantity + 1e-9) return { status: "oversold", symbol, tradeDate: t.tradeDate };
       const averageCost = costTotal / quantity;
+      sellCount++;
+      if (t.price > averageCost) winningSells++;
       realizedPnl += (t.price - averageCost) * t.quantity;
       realizedCostBasis += averageCost * t.quantity;
       quantity -= t.quantity;
@@ -79,10 +94,51 @@ export function summarizePositions(trades: Trade[]): PositionsResult {
       averageCost: quantity > 0 ? costTotal / quantity : null,
       realizedPnl,
       realizedCostBasis,
+      sellCount,
+      winningSells,
+      lastBuyDate,
       trades: list,
     });
   }
   return { status: "ok", positions };
+}
+
+export type TurtleSummary = {
+  tradeCount: number;
+  sellCount: number;
+  winningSells: number;
+  realizedPnl: number;
+  /** 매도한 터틀 수량의 평균단가 대비 수익률. 터틀 매도가 없으면 null */
+  realizedPercent: number | null;
+  /** 터틀 매매로 지금 보유 중인 종목 */
+  openPositions: Position[];
+};
+
+/** 출처가 터틀 신호인 매매만 모아 따로 계산한다. 터틀 매도 수량 검사는 checkTradeChange가 맡는다. */
+export function summarizeTurtleTrades(trades: Trade[]): TurtleSummary {
+  const turtle = trades.filter((t) => t.source === "turtle");
+  const result = summarizePositions(turtle);
+  const positions = result.status === "ok" ? result.positions : [];
+
+  let realizedPnl = 0;
+  let realizedCostBasis = 0;
+  let sellCount = 0;
+  let winningSells = 0;
+  for (const p of positions) {
+    realizedPnl += p.realizedPnl;
+    realizedCostBasis += p.realizedCostBasis;
+    sellCount += p.sellCount;
+    winningSells += p.winningSells;
+  }
+
+  return {
+    tradeCount: turtle.length,
+    sellCount,
+    winningSells,
+    realizedPnl,
+    realizedPercent: realizedCostBasis > 0 ? (realizedPnl / realizedCostBasis) * 100 : null,
+    openPositions: positions.filter((p) => p.quantity > 0),
+  };
 }
 
 export type PositionEvaluation = {

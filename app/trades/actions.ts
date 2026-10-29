@@ -7,7 +7,7 @@ import { getVerifiedUserId } from "@/lib/supabase/server";
 import { checkTradeChange, parseTradeInput, type Trade } from "@/lib/trade-journal";
 import { deleteTrade, getTrade, insertTrade, listTrades, updateTrade } from "@/lib/trade-journal/store";
 
-export type TradeFormValues = { side?: string; tradeDate?: string; price?: string; quantity?: string };
+export type TradeFormValues = { side?: string; source?: string; tradeDate?: string; price?: string; quantity?: string };
 
 /** 오류가 나면 입력값을 돌려준다. 폼 액션은 제출 뒤 입력을 초기화하기 때문이다. */
 export type TradeFormState = { error: string | null; savedAt?: number; values?: TradeFormValues };
@@ -18,6 +18,7 @@ function readForm(formData: FormData) {
     symbol: get("symbol"),
     name: get("name"),
     side: get("side"),
+    source: get("source"),
     tradeDate: get("tradeDate"),
     price: get("price"),
     quantity: get("quantity"),

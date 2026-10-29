@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { analyzeTurtle, type TurtleBar } from "@/lib/turtle";
+import { analyzeTurtle, holdingExitSignal, type TurtleBar } from "@/lib/turtle";
 
 // 하루씩 날짜를 붙인다. 기본값은 고가 = 종가+10, 저가 = 종가−10, 시가 = 종가, 거래량 100이다.
 function series(specs: Array<number | Partial<Omit<TurtleBar, "date">> & { close: number }>): TurtleBar[] {
@@ -149,5 +149,48 @@ describe("analyzeTurtle 백테스트", () => {
     expect(result.backtest.trades).toHaveLength(1);
     expect(result.backtest.openTrade).toMatchObject({ entryPrice: 150 });
     expect(result.backtest.strategyReturnPercent).toBeCloseTo(((86 / 116) * (165 / 150) - 1) * 100, 6);
+  });
+});
+
+describe("holdingExitSignal", () => {
+  // 0–39번 종가 100(진폭 20). 마지막(40번)만 따로 정한다. 날짜는 2023-01-01부터 하루씩.
+  const day = (i: number) => series(flat(i + 1))[i].date;
+
+  it("매도 기준가는 직전 20거래일 최저가, 손절 가격은 평균단가 − 2 × 매수일의 N이다", () => {
+    const bars = series([...flat(40), 104]);
+
+    const result = holdingExitSignal(bars, { averageCost: 120, lastBuyDate: day(30) });
+
+    // 30번까지 진폭은 모두 20 → N = 20, 손절 = 120 − 40 = 80. 20일 최저가 = 90
+    expect(result).toMatchObject({ status: "ok", asOf: day(40), close: 104, exitLevel: 90, nAtBuy: 20, stopPrice: 80, hitExit: false, hitStop: false });
+    if (result.status !== "ok") return;
+    expect(result.aboveExitPercent).toBeCloseTo((104 / 90 - 1) * 100, 6);
+    expect(result.aboveStopPercent).toBeCloseTo((104 / 80 - 1) * 100, 6);
+  });
+
+  it("매수일이 휴장일이면 그 직전 거래일의 N을 쓴다", () => {
+    // 25번 날짜를 빼서 휴장일로 만든다. 24번 진폭만 40으로 키워 두면 직전 거래일(24번)의 N에 반영된다.
+    const all = series([...flat(24), { close: 100, high: 120, low: 80 }, ...flat(16), 104]);
+    const holiday = all[25].date;
+    const bars = all.filter((b) => b.date !== holiday);
+
+    const result = holdingExitSignal(bars, { averageCost: 120, lastBuyDate: holiday });
+
+    expect(result.status === "ok" && result.nAtBuy).toBeCloseTo((19 * 20 + 40) / 20, 6);
+  });
+
+  it("종가가 20일 최저가나 손절 가격보다 낮으면 각각 이탈로 표시한다", () => {
+    const exitOnly = holdingExitSignal(series([...flat(40), 85]), { averageCost: 120, lastBuyDate: day(30) });
+    const both = holdingExitSignal(series([...flat(40), 75]), { averageCost: 120, lastBuyDate: day(30) });
+
+    expect(exitOnly).toMatchObject({ hitExit: true, hitStop: false });
+    expect(both).toMatchObject({ hitExit: true, hitStop: true });
+  });
+
+  it("매수일 이전 가격 기록이 20거래일이 안 되면 insufficient를 돌려준다", () => {
+    const bars = series([...flat(40), 104]);
+
+    expect(holdingExitSignal(bars, { averageCost: 120, lastBuyDate: day(10) })).toEqual({ status: "insufficient" });
+    expect(holdingExitSignal(bars, { averageCost: 120, lastBuyDate: "2022-12-01" })).toEqual({ status: "insufficient" });
   });
 });
