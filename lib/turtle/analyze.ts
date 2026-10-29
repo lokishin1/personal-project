@@ -191,3 +191,16 @@ export function analyzeTurtle(bars: TurtleBar[], periodStart: string): TurtleRes
     },
   };
 }
+
+export const BACKTEST_YEARS = 3;
+// 백테스트 첫날 앞의 55거래일을 넉넉히 덮는다.
+const LOOKBACK_EXTRA_MONTHS = 4;
+
+/** 오늘을 기준으로 가격을 받기 시작할 날짜와 백테스트 시작일(YYYY-MM-DD) */
+export function backtestWindow(now = new Date()): { fetchFrom: string; periodStart: string } {
+  const periodStart = new Date(now);
+  periodStart.setUTCFullYear(periodStart.getUTCFullYear() - BACKTEST_YEARS);
+  const fetchFrom = new Date(periodStart);
+  fetchFrom.setUTCMonth(fetchFrom.getUTCMonth() - LOOKBACK_EXTRA_MONTHS);
+  return { fetchFrom: fetchFrom.toISOString().slice(0, 10), periodStart: periodStart.toISOString().slice(0, 10) };
+}

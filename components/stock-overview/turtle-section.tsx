@@ -3,19 +3,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getDailyBars } from "@/lib/market-data";
-import { analyzeTurtle, type BacktestTrade } from "@/lib/turtle";
+import { analyzeTurtle, BACKTEST_YEARS, backtestWindow, type BacktestTrade } from "@/lib/turtle";
 
-const BACKTEST_YEARS = 3;
-// 백테스트 첫날 앞의 55거래일을 넉넉히 덮는다.
-const LOOKBACK_EXTRA_MONTHS = 4;
 const HIGH_VOLUME_RATIO = 1.5;
-
-function yearsAgo(years: number, extraMonths = 0): string {
-  const date = new Date();
-  date.setUTCFullYear(date.getUTCFullYear() - years);
-  date.setUTCMonth(date.getUTCMonth() - extraMonths);
-  return date.toISOString().slice(0, 10);
-}
 
 const REASON_LABELS: Record<BacktestTrade["reason"], string> = {
   "exit-level": "20일 최저가 이탈",
@@ -33,8 +23,9 @@ function Metric({ label, value, note }: { label: string; value: string; note?: s
 }
 
 export async function TurtleSection({ symbol, currency }: { symbol: string; currency: string }) {
-  const bars = await getDailyBars(symbol, yearsAgo(BACKTEST_YEARS, LOOKBACK_EXTRA_MONTHS));
-  const result = bars.status === "ok" ? analyzeTurtle(bars.bars, yearsAgo(BACKTEST_YEARS)) : null;
+  const { fetchFrom, periodStart } = backtestWindow();
+  const bars = await getDailyBars(symbol, fetchFrom);
+  const result = bars.status === "ok" ? analyzeTurtle(bars.bars, periodStart) : null;
 
   return (
     <Card>
