@@ -7,6 +7,9 @@ export type StockOverview = {
   type: SecurityType | string;
   currency: string;
   price: number;
+  /** 전일 종가 대비 변화(포인트·%). Yahoo가 주지 않으면 null */
+  change: number | null;
+  changePercent: number | null;
   priceTime: Date;
   /** 최근 12개월 실적 기준 PER. 적자 등으로 없으면 null */
   per: number | null;
@@ -37,6 +40,8 @@ export async function getStockOverview(symbol: string): Promise<OverviewResult> 
       type: quote.quoteType,
       currency: quote.currency ?? "USD",
       price: quote.regularMarketPrice,
+      change: quote.regularMarketChange ?? null,
+      changePercent: quote.regularMarketChangePercent ?? null,
       priceTime: quote.regularMarketTime,
       per: quote.trailingPE ?? null,
       pbr: quote.priceToBook ?? null,
