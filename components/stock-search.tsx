@@ -18,7 +18,14 @@ type SearchState = "idle" | "loading" | "done" | "error";
 // Yahoo 요청 제한을 피하려고 입력이 멈춘 뒤에만 검색한다.
 const DEBOUNCE_MS = 350;
 
-export function StockSearch({ autoFocus = false }: { autoFocus?: boolean }) {
+export function StockSearch({
+  autoFocus = false,
+  onSelect,
+}: {
+  autoFocus?: boolean;
+  /** 주면 종목 화면으로 이동하지 않고 고른 종목을 넘겨준다. */
+  onSelect?: (candidate: SecurityCandidate | null) => void;
+}) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [candidates, setCandidates] = useState<SecurityCandidate[]>([]);
@@ -76,7 +83,8 @@ export function StockSearch({ autoFocus = false }: { autoFocus?: boolean }) {
       itemToStringLabel={(item) => item.symbol}
       isItemEqualToValue={(item, value) => item.symbol === value.symbol}
       onValueChange={(item) => {
-        if (item) router.push(`/stocks/${encodeURIComponent(item.symbol)}`);
+        if (onSelect) onSelect(item);
+        else if (item) router.push(`/stocks/${encodeURIComponent(item.symbol)}`);
       }}
     >
       <ComboboxInput

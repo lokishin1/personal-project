@@ -10,6 +10,11 @@ export function formatPriceTime(date: Date): string {
   }).format(date);
 }
 
+export function formatSignedMoney(value: number, currency: string): string {
+  const sign = value > 0 ? "+" : value < 0 ? "−" : "";
+  return `${sign}${formatMoney(Math.abs(value), currency)}`;
+}
+
 export function formatPercent(value: number): string {
   const sign = value > 0 ? "+" : "";
   return `${sign}${value.toFixed(2)}%`;

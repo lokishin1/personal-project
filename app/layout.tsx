@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
-import Link from "next/link";
-
+import { SiteHeader } from "@/components/site-header";
 import { cn } from "@/lib/utils";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
@@ -29,13 +28,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", inter.variable)}
     >
       <body className="min-h-full flex flex-col">
-        <header className="border-b">
-          <div className="mx-auto flex w-full max-w-4xl items-center px-4 py-3">
-            <Link href="/" className="font-heading font-semibold">
-              종목 한눈에 보기
-            </Link>
-          </div>
-        </header>
+        <SiteHeader />
         <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col px-4">{children}</main>
       </body>
     </html>
