@@ -4,3 +4,4 @@
 
 - [ui-composition](ui-composition.md) — Read when choosing UI components, page composition, visual tokens, or custom interface boundaries.
 - [market-data-source](market-data-source.md) — Read when fetching stock or ETF prices, price history, volume, or valuation ratios.
+- [user-data-storage](user-data-storage.md) — Read when storing user-entered data, adding login, or deciding who can read or write a record.
